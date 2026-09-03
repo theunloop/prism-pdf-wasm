@@ -1,0 +1,33 @@
+# Prism PDF for WebAssembly — Cargo workspace.
+#
+# One member: the wasm-bindgen shim over the engine's `prismpdf` facade. The workspace exists so
+# `cargo` commands can be run from the repository root the way `npm` ones are, and so the release
+# profile below applies to the artifact that actually ships.
+[workspace]
+resolver = "3"
+members = ["crates/prism-pdf-wasm"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+license = "MIT"
+authors = ["Prism PDF contributors"]
+repository = "https://github.com/theunloop/prism-pdf-wasm"
+
+# The profile the shipped .wasm is built with. Size is a user-visible cost in a browser package in
+# a way it never is for a native library, so this leans harder on the optimiser than the engine's
+# own `dist` profile does.
+#
+# `panic` is deliberately left alone. On wasm32-unknown-unknown there is no unwinding to abort:
+# rustc already lowers a panic to a trap, which is why the engine's `catch_unwind` contract does
+# not survive here. See docs/wasm-constraints.md.
+[profile.release]
+opt-level = "s"    # optimise for size; "z" measured larger, the loop unroller earns its bytes here
+lto = true
+codegen-units = 1
+strip = "symbols"
+# The engine keeps integer-overflow checks on in release (its Cargo.toml explains why: a wrapped
+# offset in a parser of hostile input is a logic error safe Rust will not otherwise catch). That
+# reasoning does not weaken in a browser, where the input is even less trusted.
+overflow-checks = true

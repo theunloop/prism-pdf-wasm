@@ -1,0 +1,4 @@
+# Matches the engine's own rustfmt settings, so a diff between the shim and the engine reads the
+# same way.
+edition = "2024"
+max_width = 100

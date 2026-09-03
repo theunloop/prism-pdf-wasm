@@ -1,0 +1,11 @@
+# Pinned so a contributor, the devcontainer and CI all build the same bytes. The engine needs
+# 1.88+ (edition 2024); wasm32-unknown-unknown is the only target this repository builds.
+#
+# `clippy` and `rustfmt` are listed because CI runs both and denies warnings — without them here,
+# `cargo fmt` on a fresh checkout fails with "not installed for the toolchain" rather than
+# formatting anything. `profile = "minimal"` keeps the rest of the toolchain small.
+[toolchain]
+channel = "1.90"
+targets = ["wasm32-unknown-unknown"]
+components = ["clippy", "rustfmt"]
+profile = "minimal"
