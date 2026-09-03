@@ -1,0 +1,70 @@
+{
+  "name": "prism-pdf",
+  "version": "0.1.0",
+  "description": "Read, inspect and rewrite PDFs in the browser and in Node — the WebAssembly binding for the Prism PDF engine.",
+  "keywords": [
+    "pdf",
+    "wasm",
+    "webassembly",
+    "pdf-parser",
+    "pdf-text-extraction",
+    "rust"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theunloop/prism-pdf-wasm.git"
+  },
+  "homepage": "https://github.com/theunloop/prism-pdf-wasm#readme",
+  "bugs": "https://github.com/theunloop/prism-pdf-wasm/issues",
+  "type": "module",
+  "sideEffects": [
+    "./dist/index.web.js",
+    "./dist/index.node.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.web.d.ts",
+      "node": {
+        "types": "./dist/index.node.d.ts",
+        "default": "./dist/index.node.js"
+      },
+      "browser": "./dist/index.web.js",
+      "default": "./dist/index.web.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/index.web.d.ts",
+  "files": [
+    "dist",
+    "pkg",
+    "README.md",
+    "LICENSE.md",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "npm run build:wasm && npm run build:ts",
+    "build:wasm": "build/build-wasm.sh",
+    "build:ts": "tsc -p tsconfig.build.json",
+    "build:demo": "build/build-demo.sh",
+    "demo": "npm run build:demo && node build/serve-demo.mjs",
+    "corpus": "build/fetch-corpus.sh",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "smoke": "build/smoke-package.sh",
+    "check:tag": "build/check-tag.sh",
+    "test:browser": "node tests/browser/run.mjs",
+    "test:demo": "node tests/demo/run.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "pdfjs-dist": "^6.3.289",
+    "playwright": "^1.49.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

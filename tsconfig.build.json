@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // `src/` as the root so the emitted files land directly in `dist/`, which keeps their
+    // `../pkg/...` imports resolving to the wasm packages at the repository root — exactly where
+    // they sit in the published tarball. The generated `pkg/**/*.d.ts` are declaration files, so
+    // importing them from outside `rootDir` emits nothing and does not widen the output tree.
+    "rootDir": "src",
+    "outDir": "dist",
+    "noEmit": false
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["tests/**/*"]
+}
