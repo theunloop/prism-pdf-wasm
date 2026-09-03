@@ -1,0 +1,64 @@
+# Publish the demo to GitHub Pages.
+#
+# Separate from ci.yml on purpose: CI gates merging, this ships a page. It rebuilds the wasm rather
+# than reusing CI's artifact so that a deploy is reproducible from a checkout alone, and so a
+# re-run of this workflow can never publish bytes from a run whose tests have since been rewritten.
+#
+# Pages serves .wasm as application/wasm, which is what `WebAssembly.instantiateStreaming` requires
+# and the reason raw.githubusercontent.com is not an option — it serves everything as text/plain
+# with nosniff, which breaks both the module scripts and the streaming instantiation.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# One deploy at a time, and let a newer commit win rather than queueing behind an older one.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+
+      - run: rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: engine-${{ hashFiles('ENGINE_TAG', 'Cargo.lock') }}
+      - uses: jetli/wasm-pack-action@v0.4.0
+        with: { version: "v0.13.1" }
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm run build:demo
+
+      # The same checks CI runs, before anything is published. A demo that 404s on its own .wasm
+      # is worse than no demo.
+      - run: npm run corpus
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:demo
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: _site }
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

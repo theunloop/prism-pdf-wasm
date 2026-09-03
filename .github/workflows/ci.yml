@@ -1,0 +1,248 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+env:
+  # Read from ENGINE_TAG by the build, and named here only so the cache key can see it. `check:tag`
+  # is what actually enforces that every copy of this string agrees.
+  WASM_PACK_VERSION: "0.13.1"
+
+jobs:
+  # ===============================================================================================
+  # Everything that needs neither a Rust build nor the corpus. Fails first, and fastest, when the
+  # pinned engine tag has drifted between ENGINE_TAG, Cargo.toml, Cargo.lock and the docs — the
+  # failure most likely to make every other job meaningless.
+  # ===============================================================================================
+  static:
+    name: static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+
+      - run: npm ci
+      - name: The pinned engine tag agrees everywhere
+        run: npm run check:tag
+      - name: Types
+        run: npm run typecheck
+      - name: Rust lints
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo fmt --check
+          cargo clippy --target wasm32-unknown-unknown --all-targets -- -D warnings
+
+  # ===============================================================================================
+  # Build the wasm once, for everyone.
+  #
+  # Both wasm builds come from one compile of the engine, so doing it per-matrix-leg would be three
+  # copies of a two-minute Rust build to produce identical bytes. Downstream jobs test the same
+  # artifact the release would publish, which is the only way "the tests passed" says anything
+  # about the tarball.
+  # ===============================================================================================
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+
+      - name: Rust
+        run: rustup target add wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # The engine is a git dependency, so the cache must turn over when the pinned tag does.
+          key: engine-${{ hashFiles('ENGINE_TAG', 'Cargo.lock') }}
+      - uses: jetli/wasm-pack-action@v0.4.0
+        with: { version: "v${{ env.WASM_PACK_VERSION }}" }
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Report the shipped size
+        run: |
+          # Size is a user-visible cost in a browser package, so it goes in the log on every run
+          # rather than being discovered by a consumer.
+          for f in pkg/web/prism_pdf_bg.wasm pkg/node/prism_pdf_bg.wasm; do
+            printf '%-32s %8s raw  %8s gzipped\n' "$f" \
+              "$(du -h "$f" | cut -f1)" "$(gzip -9 -c "$f" | wc -c | awk '{printf "%dK", $1/1024}')"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build
+          if-no-files-found: error
+          path: |
+            pkg
+            dist
+
+  # ===============================================================================================
+  # The conformance suite, on every runtime the package claims to support.
+  #
+  # The Node legs span the declared engines floor and current; the browser leg is the one that
+  # proves the `web` build's fetch-and-instantiate path works where it actually runs, which no
+  # amount of Node testing can establish.
+  # ===============================================================================================
+  test:
+    name: test (${{ matrix.name }})
+    needs: [static, build]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "node 18", node: "18" }
+          - { name: "node 22", node: "22" }
+          - { name: "node 24", node: "24" }
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ matrix.node }}", cache: npm }
+      - uses: actions/download-artifact@v4
+        with: { name: build }
+
+      - run: npm ci
+      - name: Fetch and verify the shared corpus
+        run: npm run corpus
+
+      # The skip check is the point of this step. The suites skip rather than fail when the corpus
+      # is missing, which is the right courtesy for a contributor and exactly the wrong outcome
+      # here: a green leg that tested nothing looks identical to one that tested everything.
+      - name: Test
+        run: |
+          set -euo pipefail
+          npm test -- --reporter=verbose 2>&1 | tee results.txt
+          if grep -qE '↓|skipped' results.txt; then
+            echo "::error::${{ matrix.name }} skipped tests — the corpus was not found"
+            exit 1
+          fi
+
+  browser:
+    name: test (chromium)
+    needs: [static, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - uses: actions/download-artifact@v4
+        with: { name: build }
+
+      - run: npm ci
+      - run: npm run corpus
+      - run: npx playwright install --with-deps chromium
+      # Serves the built package over HTTP and drives it in a real browser. This is the only job
+      # that exercises `WebAssembly.instantiateStreaming` against a fetched URL — and the only one
+      # that would catch the .wasm being served with the wrong content type, which fails in a
+      # browser and nowhere else.
+      - name: Vertical slice under headless Chromium
+        run: npm run test:browser
+
+  # ===============================================================================================
+  # The demo, driven in a browser.
+  #
+  # The demo is the only place the package is used exactly as a consumer on a static host uses it:
+  # no bundler, `await init()` with no argument, and PDFs arriving from a file input. It is also
+  # the page this repository publishes, so a break here is user-visible in a way a broken test is
+  # not.
+  # ===============================================================================================
+  demo:
+    name: test (demo)
+    needs: [static, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - uses: actions/download-artifact@v4
+        with: { name: build }
+
+      - run: npm ci
+      - run: npm run corpus
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build:demo
+      - name: Drive the demo under headless Chromium
+        run: |
+          set -euo pipefail
+          npm run test:demo 2>&1 | tee demo.txt
+          # The runner skips with a message when the corpus is missing, which is right for a
+          # contributor and wrong here — a green leg that checked nothing reads as a pass.
+          if grep -q 'skipped' demo.txt; then
+            echo "::error::demo checks skipped — the corpus was not found"
+            exit 1
+          fi
+
+  # ===============================================================================================
+  # The tarball, and whether a consumer can actually use it.
+  #
+  # Everything above reaches the code through the source tree, which never exercises the exports
+  # map, the `files` list, or whether the .wasm survived being moved into node_modules.
+  # ===============================================================================================
+  package:
+    name: package
+    needs: [static, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm }
+      - uses: actions/download-artifact@v4
+        with: { name: build }
+
+      - run: npm ci
+      - name: Pack and prove the packaged shape works
+        run: npm run smoke
+      - run: npm pack
+      - uses: actions/upload-artifact@v4
+        with: { name: tarball, path: "*.tgz", if-no-files-found: error }
+
+  # ===============================================================================================
+  # Publish, on a tag only.
+  #
+  # Gated on the `npm` environment: add required reviewers to it so a push to the registry — which
+  # cannot be undone, only deprecated — is something a person agrees to rather than something a tag
+  # push causes.
+  #
+  # Authentication is npm Trusted Publishing: GitHub mints a short-lived OIDC token and npm
+  # exchanges it, so there is no long-lived automation token in this repository's secrets to leak.
+  # Configure the policy on npmjs.com under the package's Settings -> Trusted Publisher, naming
+  # this repository, `ci.yml`, and the `npm` environment.
+  # ===============================================================================================
+  publish:
+    name: publish
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, browser, package]
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      # Without this the OIDC token is never issued and the publish fails with no obvious cause.
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", registry-url: "https://registry.npmjs.org" }
+      - uses: actions/download-artifact@v4
+        with: { name: build }
+
+      - run: npm ci
+      - name: The tag matches the package version
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "::error::tag v$tag does not match package.json version $pkg."
+            exit 1
+          fi
+          echo "publishing prism-pdf $pkg"
+
+      # --provenance ties the published tarball to this workflow run and this commit, so a
+      # consumer can verify where the .wasm they are about to run in their users' browsers was
+      # built. It needs the id-token permission above.
+      - run: npm publish --provenance --access public

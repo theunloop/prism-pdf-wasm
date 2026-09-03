@@ -1,0 +1,54 @@
+{
+  "name": "Prism PDF for WebAssembly",
+  "build": { "dockerfile": "Dockerfile" },
+
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "username": "node"
+    },
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "vitest.explorer",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "editorconfig.editorconfig",
+        "github.vscode-github-actions",
+        "eamodio.gitlens",
+        "pkief.material-icon-theme"
+      ],
+      "settings": {
+        "workbench.iconTheme": "material-icon-theme",
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "editor.formatOnSave": true,
+        "typescript.tsdk": "node_modules/typescript/lib",
+        // The shim is the only Rust here; point rust-analyzer at it rather than letting it scan
+        // the whole workspace, and give it the one target this repository ever builds.
+        "rust-analyzer.linkedProjects": ["Cargo.toml"],
+        "rust-analyzer.cargo.target": "wasm32-unknown-unknown",
+        "files.watcherExclude": {
+          "**/target/**": true,
+          "**/pkg/**": true,
+          "**/dist/**": true
+        },
+        "search.exclude": {
+          "**/target": true,
+          "**/pkg": true,
+          "**/dist": true,
+          "**/corpus": true
+        }
+      }
+    }
+  },
+
+  "remoteUser": "node"
+}
