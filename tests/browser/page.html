@@ -1,0 +1,25 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Prism PDF browser smoke</title>
+<!--
+  The browser harness loads the package the way a no-bundler consumer does: a plain ES module
+  importing the `web` build, which fetches and compiles the .wasm itself. That fetch-and-instantiate
+  path is the one thing no amount of Node testing can exercise, and it is the path every browser
+  consumer takes.
+-->
+<body>
+  <pre id="out">running…</pre>
+  <script type="module">
+    import { run } from "./harness.js";
+    run().then(
+      (results) => {
+        window.__results = results;
+        document.getElementById("out").textContent = JSON.stringify(results, null, 2);
+      },
+      (error) => {
+        window.__results = { fatal: String(error?.stack ?? error) };
+        document.getElementById("out").textContent = window.__results.fatal;
+      },
+    );
+  </script>
+</body>
