@@ -1,0 +1,45 @@
+[package]
+name = "prism-pdf-wasm"
+description = "wasm-bindgen shim over the Prism PDF engine facade — the raw layer of the WASM binding."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false        # this crate ships inside an npm package, never to crates.io
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# The engine, pinned by tag. `docs/native-artifacts.md` publishes no wasm artifact — thirteen
+# native RIDs and an XCFramework, none of them loadable here — so unlike every other binding this
+# one compiles the engine itself. That is cheap because there is exactly one target to build:
+# no glibc floor, no static CRT, no code signature, no RID matrix.
+#
+# For engine work, build/build-wasm.sh --core <path> writes a [patch] pointing at a local
+# checkout. See docs/engine-source.md.
+prismpdf = { git = "https://github.com/theunloop/prism-pdf", tag = "v1.0.0-alpha.1" }
+
+wasm-bindgen = "0.2"
+js-sys = "0.3"
+
+# Not used directly — this is the whole reason a plain `cargo build --target
+# wasm32-unknown-unknown` of the engine fails. `getrandom` refuses to compile for
+# wasm*-unknown-unknown unless told it is on the web, and Cargo features are additive across the
+# graph, so enabling it here enables it for the engine's crypto stack beneath us.
+# Removing this line breaks the build with a compile_error!, not a runtime surprise.
+getrandom = { version = "0.2", features = ["js"] }
+
+# wasm-opt runs after wasm-bindgen and is where most of the size saving happens, so it stays on.
+# The feature flags are not optional extras: rustc 1.88+ emits bulk-memory (`memory.fill`),
+# sign-extension and non-trapping float-to-int instructions for wasm32 by default, and wasm-pack's
+# pinned wasm-opt validates against an older feature set — without these it rejects its own input
+# with "Bulk memory operations require bulk memory". All three have been baseline in every browser
+# since 2021 and in Node 16, which is well below this package's floor.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-O", "--enable-bulk-memory", "--enable-sign-ext", "--enable-nontrapping-float-to-int"]
+
+[package.metadata.wasm-pack.profile.dev]
+wasm-opt = false
