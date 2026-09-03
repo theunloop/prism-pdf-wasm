@@ -1,0 +1,1023 @@
+/*
+ * The demo's stylesheet.
+ *
+ * Two ideas run through it. The visitor's document is the content, so the chrome is quiet: one
+ * accent, one spectral gradient used exactly twice (the mark in the top bar, and the top edge of
+ * the panel that asks for a file), and no decoration that is not carrying information. And the
+ * page reads as an instrument rather than a landing page: every panel has a readout line stating
+ * what the engine did and how long it took, and those numbers are measured, never asserted.
+ *
+ * Colour is defined once, in tokens, on bare `:root`. Dark mode re-defines only the tokens — twice,
+ * because the theme has three states: an explicit choice, and the system default that stamps
+ * nothing on the root element.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces: a cool bench grey, so a white PDF page reads as paper against it. */
+  --bg: #eceef2;
+  --panel: #ffffff;
+  --sunken: #f5f6f9;
+  --rail: #f2f4f7;
+
+  --ink: #101623;
+  --ink-2: #545d6d;
+  --ink-3: #838c9b;
+  --line: #dde1e9;
+  --line-2: #c7cddb;
+
+  /* One accent. The spectral ramp below is for the mark and the drop panel's edge, nothing else. */
+  --accent: #4b3fd4;
+  --accent-ink: #ffffff;
+  --accent-weak: #eeecfd;
+  --accent-line: #cec9f7;
+
+  --ok: #0c7355;
+  --ok-weak: #e2f4ee;
+  --warn: #8a5b00;
+  --warn-weak: #fbf0dc;
+  --bad: #ab2b45;
+  --bad-weak: #fdeaee;
+
+  /* The single-hue ramp the size bars are drawn from: magnitude, not identity. */
+  --bar: #6f63e0;
+  --bar-weak: #b9b3f0;
+  --bar-track: #e7e9f0;
+
+  --shadow-1: 0 1px 2px rgb(16 22 35 / 6%), 0 1px 1px rgb(16 22 35 / 4%);
+  --shadow-2: 0 8px 24px rgb(16 22 35 / 10%), 0 2px 6px rgb(16 22 35 / 6%);
+  --shadow-page: 0 2px 10px rgb(16 22 35 / 16%);
+
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --r-s: 6px;
+  --r-m: 10px;
+  --r-l: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d1017;
+    --panel: #161b25;
+    --sunken: #111620;
+    --rail: #12171f;
+    --ink: #e8ecf3;
+    --ink-2: #a7b0c0;
+    --ink-3: #78818f;
+    --line: #242c3a;
+    --line-2: #333d4e;
+    --accent: #8b7cf5;
+    --accent-ink: #12101f;
+    --accent-weak: #1e1b33;
+    --accent-line: #342e57;
+    --ok: #4dc296;
+    --ok-weak: #10241d;
+    --warn: #d9a441;
+    --warn-weak: #251d0f;
+    --bad: #f1697f;
+    --bad-weak: #2a1219;
+    --bar: #8b7cf5;
+    --bar-weak: #4b4585;
+    --bar-track: #1e2431;
+    --shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow-2: 0 10px 30px rgb(0 0 0 / 50%);
+    --shadow-page: 0 2px 14px rgb(0 0 0 / 55%);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d1017;
+  --panel: #161b25;
+  --sunken: #111620;
+  --rail: #12171f;
+  --ink: #e8ecf3;
+  --ink-2: #a7b0c0;
+  --ink-3: #78818f;
+  --line: #242c3a;
+  --line-2: #333d4e;
+  --accent: #8b7cf5;
+  --accent-ink: #12101f;
+  --accent-weak: #1e1b33;
+  --accent-line: #342e57;
+  --ok: #4dc296;
+  --ok-weak: #10241d;
+  --warn: #d9a441;
+  --warn-weak: #251d0f;
+  --bad: #f1697f;
+  --bad-weak: #2a1219;
+  --bar: #8b7cf5;
+  --bar-weak: #4b4585;
+  --bar-track: #1e2431;
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-2: 0 10px 30px rgb(0 0 0 / 50%);
+  --shadow-page: 0 2px 14px rgb(0 0 0 / 55%);
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.55 var(--sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0s !important; transition-duration: 0s !important; }
+}
+
+/* --- shell ------------------------------------------------------------------------------------ */
+
+#app {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+}
+
+#top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 16px;
+  height: 54px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.wordmark {
+  display: flex;
+  white-space: nowrap;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 640;
+  letter-spacing: -0.012em;
+}
+
+.wordmark svg { display: block; }
+
+#top .facts {
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  color: var(--ink-3);
+  font: 11.5px/1 var(--mono);
+  padding-left: 4px;
+  border-left: 1px solid var(--line);
+  margin-left: 2px;
+  padding-left: 14px;
+}
+
+#top .spacer { flex: 1; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ok);
+  color: var(--ok);
+  background: var(--ok-weak);
+  border-radius: 999px;
+  padding: 3px 10px 3px 8px;
+  font-size: 12px;
+  font-weight: 560;
+  white-space: nowrap;
+}
+
+.pill svg { display: block; }
+
+/* The theme switch: two segments, and the one you are looking at is the pressed one. */
+.themeswitch {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  background: var(--bg);
+}
+.themeswitch button {
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  border-radius: 999px;
+  width: 30px;
+  height: 24px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  position: relative;
+  transition: color 120ms, background 120ms;
+}
+.themeswitch button:hover { color: var(--ink); }
+.themeswitch button[aria-pressed="true"] {
+  background: var(--panel);
+  color: var(--accent);
+  /* The ring, not just the fill: against a near-white bar the raised pill alone is too quiet to
+     say which half is on. */
+  box-shadow: var(--shadow-1), inset 0 0 0 1px var(--accent-line);
+}
+/* While the theme is following the system, the pressed segment is a reading rather than a choice,
+   so it is marked as one. */
+.themeswitch[data-following="true"] button[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Visible to a screen reader, not to the page. */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+#body {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  min-height: 0;
+}
+
+/* --- the footer bar -----------------------------------------------------------------------------
+   No sidebar any more — one document at a time means the page has exactly one thing to show, so
+   the whole width goes to that: the empty state's call to action, or the open document's grids and
+   tables. What the rail used to carry alongside them — the handle count, the licence links — is
+   still worth keeping honest, so it moved to a slim strip that costs one line instead of a column. */
+
+#foot {
+  background: var(--rail);
+  border-top: 1px solid var(--line);
+  padding: 8px 22px;
+  color: var(--ink-3);
+  font-size: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+}
+
+#handles { font-family: var(--mono); font-size: 11.5px; }
+
+#foot .links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0 0 0 auto;
+  font-size: 12px;
+}
+#foot .links a { color: var(--ink-2); }
+
+.x {
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font: 15px/1 var(--sans);
+  padding: 3px 5px;
+  border-radius: var(--r-s);
+  cursor: pointer;
+}
+.x:hover { background: var(--bad-weak); color: var(--bad); }
+
+/* --- main -------------------------------------------------------------------------------------- */
+
+#main { min-width: 0; min-height: 0; overflow-y: auto; scroll-behavior: smooth; }
+
+#dochead {
+  padding: 16px 22px 0;
+  background: var(--bg);
+}
+
+.dochead-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.dochead-row .grow { flex: 1; min-width: 12px; }
+
+#docname {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: -0.016em;
+  word-break: break-word;
+}
+
+#docfacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+
+#docfacts b { font-family: var(--mono); font-weight: 560; color: var(--ink); }
+
+#tabs {
+  display: flex;
+  gap: 2px;
+  margin: 14px 22px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+#tabs::-webkit-scrollbar { display: none; }
+
+#tabs button {
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13.5px;
+  padding: 8px 11px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  border-radius: var(--r-s) var(--r-s) 0 0;
+}
+#tabs button:hover { color: var(--ink); background: var(--panel); }
+#tabs button[aria-selected="true"] {
+  color: var(--ink);
+  font-weight: 620;
+  border-bottom-color: var(--accent);
+}
+#tabs .count {
+  font: 11px/1 var(--mono);
+  color: var(--ink-3);
+  margin-left: 5px;
+}
+
+/* Brackets the one tab that changes the document — Pages — so the tab bar itself says that every
+   tab either side of it only ever reads. */
+.tabsep {
+  width: 1px;
+  align-self: stretch;
+  margin: 6px 4px;
+  background: var(--line);
+}
+
+#panel { padding: 20px 22px 64px; min-width: 0; }
+
+/* --- panel primitives -------------------------------------------------------------------------- */
+
+.panel-h {
+  margin: 26px 0 10px;
+  font-size: 14.5px;
+  font-weight: 620;
+  letter-spacing: -0.008em;
+}
+.panel-h:first-child { margin-top: 0; }
+
+.sub { color: var(--ink-2); font-size: 13px; margin: 0 0 12px; max-width: 74ch; }
+.sub:last-child { margin-bottom: 0; }
+
+/* The one bold move on the page: every panel says what the engine did, and how long it took. */
+.readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 16px;
+  align-items: baseline;
+  border-left: 2px solid var(--accent);
+  background: var(--sunken);
+  border-radius: 0 var(--r-s) var(--r-s) 0;
+  padding: 7px 12px;
+  margin: 0 0 16px;
+  font: 12px/1.5 var(--mono);
+  color: var(--ink-2);
+}
+.readout b { color: var(--ink); font-weight: 600; }
+.readout .ms { color: var(--accent); }
+
+/* Where pixels on this page are not the engine's, the panel says so. */
+.notice, .provenance {
+  border: 1px solid var(--accent-line);
+  background: var(--accent-weak);
+  border-radius: var(--r-m);
+  padding: 12px 14px;
+  margin: 0 0 18px;
+  font-size: 13px;
+  color: var(--ink);
+  max-width: 92ch;
+}
+.notice strong { display: block; margin-bottom: 3px; }
+.provenance {
+  margin: 16px 0 0;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  background: none;
+  border-color: var(--line);
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-1);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.tile {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  padding: 11px 13px 12px;
+  box-shadow: var(--shadow-1);
+}
+.tile .v {
+  font: 600 21px/1.15 var(--sans);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  display: block;
+}
+.tile .k { color: var(--ink-2); font-size: 12px; display: block; margin-top: 3px; }
+.tile .v small { font-size: 13px; font-weight: 500; color: var(--ink-2); letter-spacing: 0; }
+
+.kv {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) minmax(0, 1fr);
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  overflow: hidden;
+  background: var(--panel);
+  box-shadow: var(--shadow-1);
+  max-width: 96ch;
+}
+.kv > dt {
+  padding: 8px 12px;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  border-top: 1px solid var(--line);
+  background: var(--sunken);
+}
+.kv > dd {
+  margin: 0;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  word-break: break-word;
+  min-width: 0;
+}
+.kv > dt:first-of-type, .kv > dt:first-of-type + dd { border-top: 0; }
+.kv em { color: var(--ink-3); font-style: normal; }
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+  background: var(--panel);
+}
+.scroll {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  box-shadow: var(--shadow-1);
+  /* A three-column table has no business being 1400px wide just because the window is. */
+  max-width: 112ch;
+}
+th, td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+thead th {
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: 12.5px;
+  white-space: nowrap;
+  background: var(--sunken);
+  position: sticky;
+  top: 0;
+}
+tbody tr:last-child td { border-bottom: 0; }
+td.num, th.num {
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+td.mono { font-family: var(--mono); font-size: 12px; }
+
+pre {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  padding: 14px 16px;
+  overflow: auto;
+  font: 12.5px/1.6 var(--mono);
+  max-height: 58vh;
+  margin: 0;
+  box-shadow: var(--shadow-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+pre em { color: var(--ink-3); font-style: normal; }
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 0 12px;
+}
+.row label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); }
+.row .grow { flex: 1; min-width: 0; }
+
+input[type="text"], input[type="number"], input[type="search"], select {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 9px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-s);
+  background: var(--panel);
+  color: var(--ink);
+}
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+input::placeholder { color: var(--ink-3); }
+
+button.act {
+  font: inherit;
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 570;
+  padding: 6px 13px;
+  border-radius: var(--r-s);
+  cursor: pointer;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  transition: filter 120ms;
+}
+button.act:hover:not(:disabled) { filter: brightness(1.08); }
+button.act.ghost { background: var(--panel); color: var(--ink); border-color: var(--line-2); }
+button.act.ghost:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); filter: none; }
+button.act.tiny { padding: 3px 8px; font-size: 12px; }
+button.act:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.tag {
+  display: inline-block;
+  font: 500 11.5px/1.7 var(--sans);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-s);
+  padding: 0 6px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.tag.ok { color: var(--ok); border-color: var(--ok); background: var(--ok-weak); }
+.tag.warn { color: var(--warn); border-color: var(--warn); background: var(--warn-weak); }
+.tag.bad { color: var(--bad); border-color: var(--bad); background: var(--bad-weak); }
+.tag.mono { font-family: var(--mono); }
+
+.err { color: var(--bad); font-size: 13px; }
+.err:empty { display: none; }
+.hint { color: var(--ink-3); font-size: 12.5px; }
+
+/* --- the empty state --------------------------------------------------------------------------- */
+
+/* Centred now that there is no rail to sit beside — a call to action reads as one on a wide
+   screen only if it is not pinned to the left edge of it. The open document, below, stays full
+   width: its grids and tables want the room a rail used to take. */
+#hero { padding: 6vh 22px 40px; max-width: 940px; margin: 0 auto; }
+
+#hero h2 {
+  margin: 0 0 12px;
+  font-size: clamp(28px, 4.4vw, 42px);
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  font-weight: 660;
+  max-width: 24ch;
+}
+
+#hero .lede { color: var(--ink-2); font-size: 15.5px; line-height: 1.6; max-width: 62ch; margin: 0 0 28px; }
+
+/* The spectral edge, used here and on the mark in the top bar. Nowhere else. */
+#opencard {
+  position: relative;
+  max-width: 620px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-l);
+  box-shadow: var(--shadow-2);
+  padding: 24px;
+  overflow: hidden;
+}
+#opencard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: linear-gradient(90deg, #6d4df6, #2b7fe4, #17a186, #d99b12, #cf3f76);
+}
+#opencard h3 { margin: 4px 0 6px; font-size: 17px; font-weight: 620; letter-spacing: -0.01em; }
+#opencard p { margin: 0 0 16px; color: var(--ink-2); font-size: 13.5px; max-width: 64ch; }
+#opencard .row { margin: 0; }
+
+#hero .claims {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 22px 28px;
+  margin: 30px 0 0;
+  padding: 0;
+  list-style: none;
+}
+#hero .claims dt { font-weight: 600; font-size: 13.5px; margin-bottom: 3px; }
+#hero .claims dd { margin: 0; color: var(--ink-2); font-size: 13px; }
+#hero .claims dd code { font-family: var(--mono); font-size: 12px; }
+
+/* --- the page viewer (a variant of #lightbox, opened from a thumbnail) ------------------------- */
+
+#lightbox.pageview figure { max-width: min(94vw, 1200px); }
+.pageview-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+#pvstage {
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  background: var(--sunken);
+  padding: 18px;
+  text-align: center;
+  overflow: auto;
+  max-height: 74vh;
+  min-height: 240px;
+}
+#pvstage canvas { display: block; background: #fff; box-shadow: var(--shadow-page); border-radius: 1px; }
+
+/* The card's rotation, not the file's — the same turn the thumbnail shows, just not shrunk to fit
+   a square frame. The wrapper is sized for the rotated bounding box; the canvas rotates inside it. */
+.pvrot { display: grid; place-items: center; margin: 0 auto; }
+.pvrot canvas { transform: rotate(var(--deg, 0deg)); transition: transform 160ms; }
+
+#pvnote {
+  margin: 12px 0 0;
+  text-align: left;
+}
+
+/* --- pages ------------------------------------------------------------------------------------- */
+
+#pagegrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pcard {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  background: var(--panel);
+  padding: 8px;
+  box-shadow: var(--shadow-1);
+  transition: border-color 120ms, box-shadow 120ms, opacity 120ms;
+}
+.pcard.off { opacity: 0.4; border-style: dashed; box-shadow: none; }
+.pcard.drag { opacity: 0.35; }
+.pcard.over { border-color: var(--accent); border-style: dashed; }
+.pcard .frame {
+  background: #fff;
+  aspect-ratio: 1 / 1.414;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 3px;
+  cursor: grab;
+}
+/* Rotation is shown, not applied: the engine is only asked when you export. A quarter turn is
+   scaled to 1/√2 so the long edge still fits the card. */
+.pcard .frame img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  transform: rotate(var(--deg, 0deg)) scale(var(--sc, 1));
+  transition: transform 160ms;
+}
+.pcard .pmeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 3px;
+  margin-top: 7px;
+  font: 11.5px/1.4 var(--mono);
+  color: var(--ink-3);
+}
+.pcard .pmeta .no { color: var(--ink-2); }
+
+.pcard .pacts {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+.pcard .pacts .spin { flex: 1; }
+.pcard .rot { color: var(--accent); }
+.pcard .pick {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  margin: 0;
+  z-index: 1;
+  box-shadow: 0 0 0 3px var(--panel);
+  border-radius: 3px;
+}
+.pcard .spin {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--ink-2);
+  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  cursor: pointer;
+  font: 12px/1 var(--sans);
+  display: grid;
+  place-items: center;
+}
+.pcard .spin:hover { border-color: var(--accent); color: var(--accent); }
+
+/* --- find -------------------------------------------------------------------------------------- */
+
+#hits { list-style: none; margin: 0; padding: 0; max-width: 108ch; }
+#hits li {
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  background: var(--panel);
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow-1);
+}
+#hits .where {
+  font: 11.5px/1.6 var(--mono);
+  color: var(--ink-3);
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+#hits .snip { font-size: 13px; line-height: 1.6; }
+#hits mark {
+  background: var(--accent-weak);
+  color: var(--ink);
+  border-bottom: 2px solid var(--accent);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+#hits button.jump { float: right; }
+
+/* --- fonts ------------------------------------------------------------------------------------- */
+
+.specimen {
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  background: var(--panel);
+  box-shadow: var(--shadow-1);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.specimen .who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.specimen .who .name { font-family: var(--mono); font-size: 12.5px; font-weight: 600; }
+.specimen .who .spacer { flex: 1; }
+.specimen .draw {
+  font-size: 28px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  color: var(--ink);
+}
+.specimen .draw .small { font-size: 15px; display: block; color: var(--ink-2); margin-top: 2px; }
+.specimen .facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 18px;
+  margin: 10px 0 0;
+  font: 11.5px/1.6 var(--mono);
+  color: var(--ink-3);
+}
+.specimen .facts b { color: var(--ink-2); font-weight: 500; }
+
+/* --- images ------------------------------------------------------------------------------------ */
+
+.imgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.imgrid li {
+  border: 1px solid var(--line);
+  border-radius: var(--r-m);
+  background: var(--panel);
+  padding: 8px;
+  box-shadow: var(--shadow-1);
+}
+.imgrid .frame {
+  background:
+    conic-gradient(from 90deg at 50% 50%, #0000 25%, rgb(128 128 128 / 12%) 0 50%, #0000 0 75%, rgb(128 128 128 / 12%) 0)
+    0 0 / 16px 16px;
+  display: grid;
+  place-items: center;
+  min-height: 116px;
+  border-radius: var(--r-s);
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.imgrid .frame canvas, .imgrid .frame img { display: block; max-width: 100%; max-height: 172px; }
+.imgrid .frame p { margin: 0; padding: 12px; text-align: center; }
+.imgrid dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1px 8px;
+  margin: 8px 0 0;
+  font: 11.5px/1.5 var(--mono);
+}
+.imgrid dt { color: var(--ink-3); }
+.imgrid dd { margin: 0; color: var(--ink-2); text-align: right; }
+.imgrid .acts { display: flex; gap: 6px; margin-top: 9px; }
+
+#lightbox {
+  position: fixed;
+  inset: 0;
+  background: rgb(8 10 15 / 78%);
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  z-index: 50;
+}
+#lightbox[hidden] { display: none; }
+#lightbox figure {
+  margin: 0;
+  background: var(--panel);
+  border-radius: var(--r-m);
+  padding: 14px;
+  box-shadow: var(--shadow-2);
+  max-width: 100%;
+  max-height: 100%;
+  overflow: auto;
+}
+/* The image lightbox magnifies decoded samples, so it draws them blocky on purpose — one square
+   per sample is the point. The page viewer draws pdf.js's own antialiased render at the size it
+   was asked for, so it is excluded from both the pixelation and the size cap. */
+#lightbox:not(.pageview) canvas, #lightbox:not(.pageview) img {
+  display: block;
+  max-width: min(80vw, 900px);
+  max-height: 74vh;
+  image-rendering: pixelated;
+}
+#lightbox figcaption {
+  margin-top: 10px;
+  font: 12px/1.6 var(--mono);
+  color: var(--ink-2);
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+}
+#lightbox.pageview figcaption { justify-content: flex-start; flex-wrap: wrap; gap: 3px 16px; }
+
+/* --- the size comparison ----------------------------------------------------------------------- */
+
+/*
+ * One measure, four rows: magnitude, so one hue, and the bar is the row. The baseline row stays
+ * neutral because it is the thing being compared against, not one of the alternatives.
+ */
+.sizebar {
+  display: block;
+  height: 9px;
+  border-radius: 0 4px 4px 0;
+  background: var(--bar);
+  min-width: 3px;
+}
+.sizebar.base { background: var(--bar-weak); }
+.barcell { width: 30%; min-width: 110px; }
+.bartrack { background: var(--bar-track); border-radius: 0 4px 4px 0; }
+.delta.down { color: var(--ok); }
+.delta.up { color: var(--ink-2); }
+
+/* --- outline tree ------------------------------------------------------------------------------ */
+
+.tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+.tree ul { padding-left: 18px; border-left: 1px solid var(--line); margin-left: 6px; }
+.tree li { padding: 3px 0; }
+.tree .row-i { display: flex; gap: 8px; align-items: baseline; }
+.tree .t { font-size: 13.5px; }
+button.jump {
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: 11.5px/1.6 var(--mono);
+  cursor: pointer;
+  padding: 0 2px;
+  text-align: left;
+}
+button.jump:hover { text-decoration: underline; }
+
+/* --- toasts ------------------------------------------------------------------------------------ */
+
+#toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 60;
+  pointer-events: none;
+}
+#toasts div {
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: var(--r-m);
+  padding: 9px 14px;
+  font-size: 13px;
+  box-shadow: var(--shadow-2);
+  animation: rise 160ms ease-out;
+  max-width: 46ch;
+}
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } }
+
+/* --- drag overlay ------------------------------------------------------------------------------ */
+
+#dragveil {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgb(75 63 212 / 8%);
+  backdrop-filter: blur(1px);
+  pointer-events: none;
+}
+#dragveil[hidden] { display: none; }
+#dragveil span {
+  background: var(--panel);
+  border: 1.5px dashed var(--accent);
+  color: var(--accent);
+  border-radius: var(--r-l);
+  padding: 18px 26px;
+  font-weight: 600;
+  box-shadow: var(--shadow-2);
+}
+
+/* --- narrow screens ---------------------------------------------------------------------------- */
+
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  #top { height: auto; min-height: 54px; flex-wrap: wrap; padding: 8px 12px; }
+  #app { height: auto; min-height: 100%; }
+  #main { overflow: visible; }
+  #top .facts { display: none; }
+  #panel { padding: 18px 14px 48px; }
+  #dochead { padding: 14px 14px 0; }
+  #tabs { margin: 12px 14px 0; }
+  #foot { padding: 8px 14px; }
+  #foot .links { margin-left: 0; }
+}

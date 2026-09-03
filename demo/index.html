@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Prism PDF — take a PDF apart in your browser</title>
+<meta
+  name="description"
+  content="Read, inspect, search, reorganise and rewrite PDFs entirely in your browser. A pure-Rust PDF engine compiled to WebAssembly. Nothing is uploaded."
+/>
+<meta name="color-scheme" content="light dark" />
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+
+<div id="app">
+  <header id="top">
+    <span class="wordmark">
+      <!--
+        The namesake, and the page's only piece of decoration: a beam entering a prism and leaving
+        as a spectrum. The same five hues edge the panel that asks for a file, and appear nowhere
+        else — colour on this page otherwise means something.
+      -->
+      <svg width="27" height="22" viewBox="0 0 27 22" aria-hidden="true" fill="none">
+        <path d="M0 11h6.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+        <path d="M9.6 2.6 17.4 18.4H1.8Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        <g stroke-width="1.7" stroke-linecap="round">
+          <path d="M13.6 11.6 26 5.4" stroke="#6d4df6" />
+          <path d="M14.2 12.8 26 8.6" stroke="#2b7fe4" />
+          <path d="M14.8 14 26 11.8" stroke="#17a186" />
+          <path d="M15.4 15.2 26 15" stroke="#d99b12" />
+          <path d="M16 16.4 26 18.2" stroke="#cf3f76" />
+        </g>
+      </svg>
+      Prism PDF
+    </span>
+
+    <span class="facts">
+      <span id="ver">starting…</span>
+      <span id="boot"></span>
+      <span id="wasmsize"></span>
+    </span>
+
+    <span class="spacer"></span>
+
+    <span class="pill" title="No request leaves this page: the engine, the page and its assets all come from this site.">
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M4.5 7V5a3.5 3.5 0 1 1 7 0v2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+        <rect x="2.75" y="7" width="10.5" height="6.75" rx="1.75" stroke="currentColor" stroke-width="1.5" />
+      </svg>
+      Nothing is uploaded
+    </span>
+
+    <!--
+      Two states, both visible: a cycling button hid the choice behind a label and made "give me
+      the dark one" a two-click guess. Neither segment is a mode the page invents — one of them is
+      always the theme you are looking at.
+    -->
+    <div class="themeswitch" id="theme" role="group" aria-label="Colour theme">
+      <button type="button" data-theme-set="light" aria-pressed="false" title="Light theme">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="3.1" stroke="currentColor" stroke-width="1.5" />
+          <g stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+            <path d="M8 1.4v1.4M8 13.2v1.4M1.4 8h1.4M13.2 8h1.4M3.3 3.3l1 1M11.7 11.7l1 1M12.7 3.3l-1 1M4.3 11.7l-1 1" />
+          </g>
+        </svg>
+        <span class="vh">Light</span>
+      </button>
+      <button type="button" data-theme-set="dark" aria-pressed="false" title="Dark theme">
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M13.4 10.1A5.6 5.6 0 0 1 6 2.7a5.7 5.7 0 1 0 7.4 7.4Z"
+                stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+        </svg>
+        <span class="vh">Dark</span>
+      </button>
+    </div>
+  </header>
+
+  <div id="body">
+    <main id="main">
+      <input type="file" id="picker" accept="application/pdf,.pdf" hidden />
+
+      <!-- The empty state. It is the first thing most visitors see, so it is the thing that has to
+           make the case: what this is, that it is local, and a document to open in one click.
+           There is no permanent sidebar for it to sit beside — with one document open at a time,
+           the whole page has exactly one thing to show, and this is it until something is open. -->
+      <section id="hero">
+        <h2>Take a PDF apart without uploading it.</h2>
+        <p class="lede">
+          This page runs Prism PDF — a PDF engine written in Rust, compiled to WebAssembly — inside
+          your browser tab. Read the text, walk the structure, pull out the images and attachments,
+          reorder or drop pages, and write the file back out. Your document never leaves the tab,
+          because there is nowhere for it to go: the page makes no request to any other server.
+        </p>
+
+        <div id="opencard">
+          <h3>Start with a document</h3>
+          <p>
+            The sample is four pages written from nothing by this repository's build script, with an
+            outline, links, two raw images, a form field, an attachment and an XMP packet — one of
+            each, so every panel has something to show. Or hand it a file of your own.
+          </p>
+          <div class="row">
+            <button class="act" id="herosample">Open the sample document</button>
+            <button class="act ghost" id="heroopen">Choose a file</button>
+          </div>
+          <p class="hint" style="margin: 10px 0 0">Or drop a PDF anywhere on this page.</p>
+          <p class="err" id="openerr"></p>
+        </div>
+
+        <dl class="claims">
+          <div>
+            <dt>One module, no bundler</dt>
+            <dd>
+              A single-threaded WebAssembly module, loaded exactly as <code>npm i prism-pdf</code>
+              gives it to you. Its transfer size is in the bar above, read from the browser rather
+              than typed in here.
+            </dd>
+          </div>
+          <div>
+            <dt>Every number here is measured</dt>
+            <dd>
+              Each panel reports what the engine did and how long the call took, taken from
+              <code>performance.now()</code> around the call itself.
+            </dd>
+          </div>
+          <div>
+            <dt>Page pictures are pdf.js's</dt>
+            <dd>
+              Prism has no rasterizer, so previews and thumbnails are drawn by
+              <a href="https://mozilla.github.io/pdf.js/" rel="noopener">Mozilla's pdf.js</a>,
+              vendored beside this page and labelled wherever it appears.
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- The open document. Also the only other thing the page can be showing — never both, and
+           never a list of several, because only one document is ever open (see app.js). -->
+      <div id="ui" hidden>
+        <div id="dochead">
+          <div class="dochead-row">
+            <h2 id="docname"></h2>
+            <span class="grow"></span>
+            <button class="act ghost tiny" id="docopen">Open a different file</button>
+            <button class="x" id="docclose" title="Close this document">×</button>
+          </div>
+          <ul id="docfacts"></ul>
+        </div>
+        <nav id="tabs" role="tablist"></nav>
+        <div id="panel" role="tabpanel"></div>
+      </div>
+    </main>
+
+    <footer id="foot">
+      <span id="handles"></span>
+      <span id="footnote">Nothing open. The engine is loaded and idle.</span>
+      <p class="links">
+        <a href="https://github.com/theunloop/prism-pdf-wasm">The package</a>
+        <a href="https://github.com/theunloop/prism-pdf-wasm/blob/main/docs/ownership.md">Why handles</a>
+        <a href="./vendor/pdfjs/LICENSE">pdf.js licence</a>
+      </p>
+    </footer>
+  </div>
+</div>
+
+<div id="lightbox" hidden></div>
+<div id="toasts" aria-live="polite"></div>
+<div id="dragveil" hidden><span>Drop to open</span></div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
